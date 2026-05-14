@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Calculator — Group 4</title>
+  <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;700;900&family=Share+Tech+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#020818;--blue1:#00a8ff;--blue2:#0057ff;--cyan:#00ffea;
+      --white:#ffffff;--glow:rgba(0,168,255,0.4);
+    }
+    html,body{width:100%;height:100%;overflow:hidden;-webkit-tap-highlight-color:transparent;touch-action:none;}
+    body{background:var(--bg);font-family:'Exo 2',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+
+    .bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+    .page{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;}
+    .page.active{display:flex;}
+    #page-loading{flex-direction:column;align-items:center;justify-content:center;}
+
+    /* ══════════ LOADING PAGE ══════════ */
+    .scan{position:absolute;left:0;right:0;height:1.5px;background:linear-gradient(90deg,transparent,var(--blue1),var(--cyan),var(--blue1),transparent);opacity:0;animation:scanMove 3.5s ease-in-out infinite;z-index:5;}
+    @keyframes scanMove{0%{top:-2%;opacity:0;}5%{opacity:0.7;}90%{opacity:0.7;}100%{top:102%;opacity:0;}}
+
+    .ring-wrap{position:absolute;top:50%;left:50%;transform:translate(-50%,-45%);width:min(380px,86vw);height:min(380px,86vw);z-index:2;}
+    #orbitCanvas{width:100%;height:100%;}
+
+    .planet-main{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(90px,20vw);height:min(90px,20vw);border-radius:50%;
+      background:radial-gradient(circle at 32% 28%,#3a8aff 0%,#1040a0 30%,#081a50 60%,#020810 100%);
+      box-shadow:0 0 40px rgba(0,140,255,0.7),0 0 80px rgba(0,80,255,0.3),inset -8px -8px 20px rgba(0,0,0,0.7),inset 5px 5px 14px rgba(60,140,255,0.2);
+      z-index:5;animation:planetGlow 3s ease-in-out infinite;}
+    .planet-main::before{content:'';position:absolute;top:12%;left:18%;width:26%;height:16%;border-radius:50%;background:rgba(255,255,255,0.1);transform:rotate(-28deg);filter:blur(3px);}
+    @keyframes planetGlow{
+      0%,100%{box-shadow:0 0 40px rgba(0,140,255,0.7),0 0 80px rgba(0,80,255,0.3),inset -8px -8px 20px rgba(0,0,0,0.7);}
+      50%{box-shadow:0 0 60px rgba(0,168,255,1),0 0 120px rgba(0,100,255,0.5),inset -8px -8px 20px rgba(0,0,0,0.7);}
+    }
+
+    .center{position:relative;z-index:20;text-align:center;padding:0.5rem 1.5rem;}
+    .title-wrap{display:inline-block;opacity:0;animation:glitchReveal 0.05s steps(1) forwards 0.4s;}
+    h1{font-size:clamp(68px,13vw,128px);font-weight:900;line-height:1;letter-spacing:-3px;color:#fff;text-shadow:0 0 40px rgba(0,168,255,0.7),0 0 100px rgba(0,168,255,0.3);position:relative;animation:glitchText 3s steps(1) forwards 0.5s;}
+    h1::before{content:'WELCOME';position:absolute;inset:0;color:rgba(0,255,255,0.8);clip-path:inset(0 0 60% 0);transform:translate(-5px,0);animation:gTop 3.5s steps(1) infinite 0.5s;z-index:1;}
+    h1::after{content:'WELCOME';position:absolute;inset:0;color:rgba(255,0,80,0.8);clip-path:inset(60% 0 0 0);transform:translate(5px,0);animation:gBot 3.5s steps(1) infinite 0.5s;z-index:1;}
+    @keyframes glitchReveal{to{opacity:1;}}
+    @keyframes glitchText{0%{opacity:0;transform:translate(-8px,0) skewX(-6deg);}3%{opacity:1;transform:translate(5px,0) skewX(4deg);}6%{opacity:0;}10%{opacity:1;transform:translate(-4px,0);}14%{opacity:0;transform:translate(6px,2px) skewX(-3deg);}18%{opacity:1;transform:translate(0,0);}100%{opacity:1;transform:translate(0,0);}}
+    @keyframes gTop{0%,78%{clip-path:inset(0 0 80% 0);transform:translate(-5px,0);opacity:0;}79%{clip-path:inset(5% 0 55% 0);transform:translate(-7px,0);opacity:1;}81%{clip-path:inset(25% 0 45% 0);transform:translate(5px,0);opacity:1;}83%{clip-path:inset(0 0 65% 0);transform:translate(-2px,0);opacity:1;}85%,100%{clip-path:inset(0 0 80% 0);opacity:0;}}
+    @keyframes gBot{0%,78%{clip-path:inset(80% 0 0 0);transform:translate(5px,0);opacity:0;}79%{clip-path:inset(55% 0 5% 0);transform:translate(7px,0);opacity:1;}81%{clip-path:inset(45% 0 25% 0);transform:translate(-5px,0);opacity:1;}83%{clip-path:inset(65% 0 0 0);transform:translate(2px,0);opacity:1;}85%,100%{clip-path:inset(80% 0 0 0);opacity:0;}}
+
+    .line-accent{display:flex;align-items:center;justify-content:center;gap:14px;margin:1rem 0 0.6rem;opacity:0;animation:flicker 0.7s steps(1) forwards 1.3s;}
+    .line-accent span{display:block;height:1px;width:70px;background:linear-gradient(90deg,transparent,var(--blue1));}
+    .line-accent span:last-child{background:linear-gradient(90deg,var(--blue1),transparent);}
+    .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 14px var(--cyan),0 0 4px var(--blue1);animation:dotP 1.8s ease-in-out infinite;}
+    @keyframes dotP{0%,100%{transform:scale(1);opacity:1;}50%{transform:scale(1.8);opacity:0.6;}}
+    .subtitle{font-family:'Share Tech Mono',monospace;font-size:clamp(11px,3vw,14px);letter-spacing:3px;color:rgba(255,255,255,0.5);text-transform:uppercase;opacity:0;animation:flicker 0.9s steps(1) forwards 1.7s;}
+    .subtitle strong{color:var(--cyan);font-weight:400;}
+    @keyframes flicker{0%{opacity:0;}20%{opacity:1;}35%{opacity:0;}52%{opacity:1;}63%{opacity:0;}78%{opacity:1;}88%{opacity:0;}100%{opacity:1;}}
+
+    .progress-wrap{position:absolute;bottom:clamp(40px,8vw,70px);left:50%;transform:translateX(-50%);width:min(300px,75vw);z-index:10;opacity:0;animation:flicker 0.5s steps(1) forwards 2s;}
+    .progress-label{display:flex;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(0,168,255,0.55);text-transform:uppercase;margin-bottom:7px;}
+    .progress-track{width:100%;height:3px;background:rgba(0,168,255,0.08);border-radius:999px;overflow:hidden;border:0.5px solid rgba(0,168,255,0.15);}
+    .progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--blue2),var(--blue1),var(--cyan));border-radius:999px;box-shadow:0 0 12px var(--blue1);transition:width 0.1s linear;}
+    .loading-status{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(0,168,255,0.4);text-transform:uppercase;text-align:center;margin-top:7px;}
+
+    .hud{position:absolute;inset:16px;pointer-events:none;z-index:5;}
+    .hc{position:absolute;width:24px;height:24px;}
+    .hc svg{width:100%;height:100%;}
+    .hc.tl{top:0;left:0;} .hc.tr{top:0;right:0;transform:scaleX(-1);}
+    .hc.bl{bottom:0;left:0;transform:scaleY(-1);} .hc.br{bottom:0;right:0;transform:scale(-1);}
+
+    .bar{position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--blue2),var(--blue1),var(--cyan),var(--blue1),var(--blue2),transparent);z-index:6;animation:barG 2s ease-in-out infinite;}
+    @keyframes barG{0%,100%{opacity:0.4;}50%{opacity:1;}}
+
+    /* ══════════ CALCULATOR PAGE ══════════ */
+    #page-calc{flex-direction:column;}
+    .calc-inner{display:flex;flex-direction:column;width:100%;max-width:420px;height:100%;max-height:820px;padding:10px 12px 14px;}
+
+    .calc-header{display:flex;align-items:center;justify-content:space-between;padding:6px 6px 0;margin-bottom:6px;}
+    .hbtn{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;border-radius:999px;padding:8px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.2s,transform 0.1s;border:0.5px solid;}
+    .hbtn:active{transform:scale(0.95);}
+    .hbtn-hist{color:rgba(0,168,255,0.9);background:rgba(0,168,255,0.1);border-color:rgba(0,168,255,0.35);}
+    .hbtn-skin{color:rgba(200,168,255,0.9);background:rgba(150,80,255,0.1);border-color:rgba(150,80,255,0.38);}
+    .calc-label{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:rgba(0,168,255,0.35);text-transform:uppercase;}
+
+    .cpanel{max-height:0;overflow-y:auto;overflow-x:hidden;transition:max-height 0.4s cubic-bezier(0.4,0,0.2,1);margin:0 4px;-webkit-overflow-scrolling:touch;}
+    .cpanel-inner{background:rgba(0,0,0,0.45);border:0.5px solid rgba(150,80,255,0.2);border-radius:14px;padding:12px 14px;margin-bottom:8px;}
+    .panel-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(200,168,255,0.6);text-transform:uppercase;margin-bottom:10px;}
+
+    .hist-panel-inner{background:rgba(0,0,0,0.45);border:0.5px solid rgba(0,168,255,0.18);border-radius:14px;padding:10px 14px;margin-bottom:8px;}
+    .hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+    .hist-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:rgba(0,168,255,0.5);text-transform:uppercase;}
+    .hist-clear{font-family:'Share Tech Mono',monospace;font-size:9px;color:rgba(255,80,80,0.6);background:none;border:none;cursor:pointer;text-transform:uppercase;padding:2px 6px;letter-spacing:1px;}
+    .hist-list{max-height:150px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;}
+    .hist-item{cursor:pointer;padding:7px 10px;border-radius:9px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(0,168,255,0.1);transition:background 0.15s;}
+    .hist-item:active{background:rgba(0,168,255,0.1);}
+    .hist-expr{font-family:'Share Tech Mono',monospace;font-size:10px;color:rgba(0,168,255,0.5);margin-bottom:2px;}
+    .hist-result{font-family:'Exo 2',sans-serif;font-size:18px;font-weight:700;color:#fff;text-align:right;}
+    .hist-empty{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(255,255,255,0.18);text-align:center;padding:8px 0;}
+
+    .opt-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;}
+    .opt{text-align:center;cursor:pointer;padding:7px 4px;border-radius:9px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:background 0.2s,border-color 0.2s;-webkit-tap-highlight-color:transparent;}
+    .opt span{font-family:'Share Tech Mono',monospace;font-size:7px;letter-spacing:1px;color:rgba(255,255,255,0.3);text-transform:uppercase;display:block;margin-top:3px;}
+    .opt.active{border-color:rgba(150,80,255,0.7);background:rgba(150,80,255,0.12);}
+    .opt.active span{color:rgba(200,168,255,0.9);}
+    .fx-divider{margin-top:12px;padding-top:10px;border-top:0.5px solid rgba(255,255,255,0.06);}
+    .fx-divider .panel-title{margin-bottom:8px;}
+
+    .calc-display{flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:0 10px 10px;text-align:right;}
+    .expr-disp{font-family:'Share Tech Mono',monospace;font-size:13px;color:rgba(0,168,255,0.45);min-height:18px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .main-disp{font-family:'Exo 2',sans-serif;font-size:clamp(52px,14vw,88px);font-weight:700;color:#fff;text-shadow:0 0 30px rgba(0,168,255,0.35);letter-spacing:-2px;line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:color 0.2s;}
+    .word-disp{font-family:'Share Tech Mono',monospace;font-size:clamp(11px,3vw,14px);letter-spacing:3px;color:rgba(0,200,255,0.5);text-transform:lowercase;text-align:right;padding:0 10px;min-height:18px;transition:opacity 0.2s;}
+
+    .btn-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(8px,2.5vw,12px);padding:0 4px;}
+    .cbtn{font-family:'Exo 2',sans-serif;font-size:clamp(18px,5vw,24px);font-weight:600;color:#fff;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.1);border-radius:50%;width:100%;aspect-ratio:1;max-height:90px;cursor:pointer;transition:background 0.12s,transform 0.08s;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;position:relative;overflow:hidden;}
+    .cbtn-wrap{position:relative;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+    .cbtn-wrap.zero-wrap{grid-column:span 2;border-radius:999px;}
+    .cbtn{z-index:2;position:relative;}
+    .cbtn.fn{background:rgba(0,168,255,0.12);color:#fff;border-color:rgba(0,168,255,0.2);font-size:clamp(13px,4vw,18px);}
+    .cbtn.op{background:rgba(0,168,255,0.14);color:var(--blue1);border-color:rgba(0,168,255,0.28);font-size:clamp(20px,6vw,28px);}
+    .cbtn.op.active-op{background:rgba(0,168,255,0.8);color:#fff;box-shadow:0 0 16px rgba(0,168,255,0.5);}
+    .cbtn.eq{background:linear-gradient(135deg,var(--blue1),var(--cyan));color:#fff;border:none;box-shadow:0 0 24px rgba(0,168,255,0.6),0 0 8px rgba(0,255,234,0.3);font-size:clamp(18px,5vw,26px);}
+    .cbtn.zero{border-radius:999px;aspect-ratio:auto;max-height:82px;height:100%;padding:0;justify-content:center;width:100%;}
+    .cbtn-wrap.zero-wrap{grid-column:span 2;}
+
+    .ripple{position:absolute;border-radius:50%;transform:scale(0);animation:rippleA 0.55s linear;background:rgba(255,255,255,0.22);pointer-events:none;}
+    .cbtn.op .ripple,.cbtn.fn .ripple{background:rgba(0,168,255,0.35);}
+    .cbtn.eq .ripple{background:rgba(255,255,255,0.28);}
+    @keyframes rippleA{to{transform:scale(4.5);opacity:0;}}
+
+    body.skin-square .cbtn{border-radius:12px;}
+    body.skin-square .cbtn.zero{border-radius:12px;}
+    body.skin-square .cbtn.eq{border-radius:12px;}
+
+    body.fx-glow .cbtn{box-shadow:0 0 14px rgba(0,168,255,0.55),0 0 4px rgba(0,168,255,0.8),inset 0 0 8px rgba(0,168,255,0.06);animation:glowP 1.6s ease-in-out infinite;}
+    body.fx-glow .cbtn.op{box-shadow:0 0 20px rgba(0,168,255,0.8),0 0 6px rgba(0,200,255,1);}
+    body.fx-glow .cbtn.eq{box-shadow:0 0 30px rgba(0,168,255,1),0 0 60px rgba(0,168,255,0.4),0 0 10px rgba(0,255,234,0.8);}
+    body.fx-glow .cbtn.fn{box-shadow:0 0 12px rgba(0,168,255,0.45),0 0 3px rgba(0,168,255,0.7);}
+    @keyframes glowP{0%,100%{filter:brightness(1);}50%{filter:brightness(1.45);}}
+    body.fx-neon .cbtn{border-width:2px;animation:neonF 3s steps(1) infinite;}
+    body.fx-neon .cbtn.op{border-color:#00ffc8;box-shadow:0 0 14px rgba(0,255,200,1),0 0 35px rgba(0,255,200,0.4),inset 0 0 14px rgba(0,255,200,0.12);color:#00ffc8;text-shadow:0 0 10px #00ffc8;}
+    body.fx-neon .cbtn.fn{border-color:#cc44ff;box-shadow:0 0 14px rgba(200,68,255,1),0 0 35px rgba(200,68,255,0.4),inset 0 0 14px rgba(200,68,255,0.12);color:#dd88ff;text-shadow:0 0 10px #cc44ff;}
+    body.fx-neon .cbtn.eq{border-color:#00ffc8;box-shadow:0 0 28px rgba(0,255,200,1),0 0 60px rgba(0,255,200,0.6);background:linear-gradient(135deg,rgba(0,255,200,0.2),rgba(0,168,255,0.2));color:#00ffc8;text-shadow:0 0 14px #00ffc8;}
+    body.fx-neon .cbtn:not(.op):not(.fn):not(.eq){border-color:#00aaff;box-shadow:0 0 12px rgba(0,170,255,0.9),0 0 26px rgba(0,170,255,0.3),inset 0 0 10px rgba(0,170,255,0.08);text-shadow:0 0 7px #00aaff;}
+    @keyframes neonF{0%,88%,92%,100%{opacity:1;}90%{opacity:0.25;}91%{opacity:0.9;}}
+    body.fx-none .cbtn{box-shadow:none!important;animation:none!important;filter:none!important;text-shadow:none!important;}
+
+    /* ══════════ FULL PAGE PANELS ══════════ */
+    #page-history, #page-skin{flex-direction:column;overflow:hidden;}
+    .panel-page-inner{position:relative;z-index:10;width:100%;max-width:420px;height:100%;display:flex;flex-direction:column;padding:14px 16px 20px;}
+
+    .panel-topbar{display:flex;align-items:center;justify-content:space-between;padding:6px 0 16px;}
+    .back-btn{display:flex;align-items:center;gap:7px;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--blue1);background:rgba(0,168,255,0.1);border:0.5px solid rgba(0,168,255,0.35);border-radius:999px;padding:8px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.2s,transform 0.1s;}
+    .back-btn:active{transform:scale(0.95);background:rgba(0,168,255,0.2);}
+    .panel-page-title{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:rgba(0,168,255,0.45);}
+
+    .hist-page-list{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:10px;-webkit-overflow-scrolling:touch;}
+    .hist-page-item{cursor:pointer;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,0.03);border:0.5px solid rgba(0,168,255,0.12);transition:background 0.15s,border-color 0.15s;}
+    .hist-page-item:active{background:rgba(0,168,255,0.1);border-color:rgba(0,168,255,0.4);}
+    .hist-page-expr{font-family:'Share Tech Mono',monospace;font-size:11px;color:rgba(0,168,255,0.5);margin-bottom:5px;}
+    .hist-page-result{font-family:'Exo 2',sans-serif;font-size:28px;font-weight:700;color:#fff;text-align:right;text-shadow:0 0 20px rgba(0,168,255,0.3);}
+    .hist-page-empty{font-family:'Share Tech Mono',monospace;font-size:12px;color:rgba(255,255,255,0.2);text-align:center;margin-top:60px;letter-spacing:2px;}
+    .hist-clear-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,80,80,0.7);background:rgba(255,80,80,0.08);border:0.5px solid rgba(255,80,80,0.25);border-radius:999px;padding:7px 16px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background 0.2s;}
+    .hist-clear-btn:active{background:rgba(255,80,80,0.18);}
+
+    .skin-section{margin-bottom:22px;}
+    .skin-section-title{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;color:rgba(200,168,255,0.5);margin-bottom:12px;padding-bottom:6px;border-bottom:0.5px solid rgba(255,255,255,0.06);}
+    .skin-grid,.fx-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+    .skin-opt,.fx-opt{text-align:center;cursor:pointer;padding:14px 8px;border-radius:14px;border:1px solid rgba(255,255,255,0.07);background:rgba(255,255,255,0.03);transition:background 0.2s,border-color 0.2s;-webkit-tap-highlight-color:transparent;}
+    .skin-opt span,.fx-opt span{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;color:rgba(255,255,255,0.3);text-transform:uppercase;display:block;margin-top:8px;}
+    .skin-opt.active{border-color:rgba(150,80,255,0.7);background:rgba(150,80,255,0.12);}
+    .skin-opt.active span{color:rgba(200,168,255,0.9);}
+    .fx-opt.active{border-color:rgba(0,168,255,0.7);background:rgba(0,168,255,0.1);}
+    .fx-opt.active span{color:rgba(0,200,255,0.9);}
+    .preview-row{display:flex;justify-content:center;gap:12px;margin:12px 0 20px;}
+    .preview-btn{width:50px;height:50px;display:flex;align-items:center;justify-content:center;font-family:'Exo 2',sans-serif;font-size:20px;font-weight:700;color:#fff;background:rgba(255,255,255,0.08);border:0.5px solid rgba(255,255,255,0.15);border-radius:50%;transition:all 0.3s;}
+    body.skin-square .preview-btn{border-radius:12px;}
+    body.fx-glow .preview-btn{box-shadow:0 0 14px rgba(0,168,255,0.55),0 0 4px rgba(0,168,255,0.8);}
+    body.fx-neon .preview-btn{border-color:#00aaff;box-shadow:0 0 12px rgba(0,170,255,0.9);text-shadow:0 0 7px #00aaff;}
+  </style>
+</head>
+<body>
+
+<canvas class="bg-canvas" id="bgCanvas"></canvas>
+
+<!-- ══ LOADING PAGE ══ -->
+<div class="page active" id="page-loading">
+  <div class="scan"></div>
+  <div class="ring-wrap">
+    <canvas id="orbitCanvas"></canvas>
+  </div>
+  <div class="center">
+    <div class="title-wrap"><h1>WELCOME</h1></div>
+    <div class="line-accent"><span></span><div class="dot"></div><span></span></div>
+
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-label">
+      <span id="status-text">Initializing</span>
+      <span id="pct-text">0%</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="prog-fill"></div></div>
+    <div class="loading-status" id="loading-status">[ Booting System... ]</div>
+  </div>
+  <div class="bar"></div>
+</div>
+
+<!-- ══ CALCULATOR PAGE ══ -->
+<div class="page" id="page-calc">
+  <canvas class="bg-canvas" id="bgCanvas3" style="z-index:1;"></canvas>
+  <div class="calc-inner" style="z-index:10;">
+
+    <div class="calc-header">
+      <div style="display:flex;gap:6px;">
+        <button class="hbtn hbtn-hist" id="hist-btn" onclick="toggleHistory()">☰ Riwayat</button>
+        <button class="hbtn hbtn-skin" id="skin-btn" onclick="toggleSkin()">❄ Skin</button>
+      </div>
+
+    </div>
+
+
+    <!-- Display -->
+    <div class="calc-display">
+      <div class="expr-disp" id="expr-disp"></div>
+      <div class="main-disp" id="main-disp">0</div>
+      <div class="word-disp" id="word-disp">nol</div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-grid">
+      <div class="cbtn-wrap"><button class="cbtn fn" onclick="calcAC()">AC</button></div>
+      <div class="cbtn-wrap"><button class="cbtn fn" onclick="calcDel()">⌫</button></div>
+      <div class="cbtn-wrap"><button class="cbtn fn" onclick="calcPct()">%</button></div>
+      <div class="cbtn-wrap"><button class="cbtn op" onclick="calcOp('/')">÷</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('7')">7</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('8')">8</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('9')">9</button></div>
+      <div class="cbtn-wrap"><button class="cbtn op" onclick="calcOp('*')">×</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('4')">4</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('5')">5</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('6')">6</button></div>
+      <div class="cbtn-wrap"><button class="cbtn op" onclick="calcOp('-')">−</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('1')">1</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('2')">2</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcNum('3')">3</button></div>
+      <div class="cbtn-wrap"><button class="cbtn op" onclick="calcOp('+')">+</button></div>
+      <div class="cbtn-wrap zero-wrap"><button class="cbtn zero" onclick="calcNum('0')">0</button></div>
+      <div class="cbtn-wrap"><button class="cbtn" onclick="calcDot()">.</button></div>
+      <div class="cbtn-wrap"><button class="cbtn eq" onclick="calcEq()">=</button></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ HISTORY PAGE ══ -->
+<div class="page" id="page-history">
+  <canvas class="bg-canvas" id="bgCanvas4" style="z-index:1;"></canvas>
+  <div class="panel-page-inner">
+    <div class="panel-topbar">
+      <button class="back-btn" onclick="goBack()">← Kembali</button>
+      <span class="panel-page-title">Riwayat</span>
+      <button class="hist-clear-btn" onclick="clearHistoryPage()">Hapus Semua</button>
+    </div>
+    <div class="hist-page-list" id="hist-page-list">
+      <div class="hist-page-empty">Belum ada riwayat</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SKIN PAGE ══ -->
+<div class="page" id="page-skin">
+  <canvas class="bg-canvas" id="bgCanvas5" style="z-index:1;"></canvas>
+  <div class="panel-page-inner" style="overflow-y:auto;-webkit-overflow-scrolling:touch;">
+    <div class="panel-topbar">
+      <button class="back-btn" onclick="goBack()">← Kembali</button>
+      <span class="panel-page-title">Skin</span>
+    </div>
+    <div class="preview-row" id="preview-row">
+      <div class="preview-btn">7</div>
+      <div class="preview-btn" style="background:rgba(0,168,255,0.14);color:var(--blue1);border-color:rgba(0,168,255,0.28);font-size:22px;">+</div>
+      <div class="preview-btn" style="background:linear-gradient(135deg,var(--blue1),var(--cyan));border:none;box-shadow:0 0 20px rgba(0,168,255,0.6);">=</div>
+    </div>
+    <div class="skin-section">
+      <div class="skin-section-title">Bentuk Tombol</div>
+      <div class="skin-grid">
+        <div class="skin-opt active" id="psk-circle" onclick="setSkin('circle')">
+          <div style="width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.25);margin:0 auto;"></div>
+          <span>Bulat</span>
+        </div>
+        <div class="skin-opt" id="psk-square" onclick="setSkin('square')">
+          <div style="width:34px;height:34px;border-radius:8px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.25);margin:0 auto;"></div>
+          <span>4 Sudut</span>
+        </div>
+      </div>
+    </div>
+    <div class="skin-section">
+      <div class="skin-section-title">Efek Tombol</div>
+      <div class="fx-grid">
+        <div class="fx-opt" id="pfx-glow" onclick="setEffect('glow')"><div style="font-size:22px;line-height:30px;">💡</div><span>Cahaya</span></div>
+        <div class="fx-opt" id="pfx-neon" onclick="setEffect('neon')"><div style="font-size:22px;line-height:30px;">🌈</div><span>Neon</span></div>
+        <div class="fx-opt active" id="pfx-none" onclick="setEffect('none')"><div style="font-size:22px;line-height:30px;">🚫</div><span>Biasa</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── ORBIT CANVAS ──
+(function() {
+  function initOrbit() {
+    const canvas = document.getElementById('orbitCanvas');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const tilt = 0.38;
+    const rings = [
+      { color:'rgba(0,168,255,0.9)',  glow:'rgba(0,200,255,0.8)',  speed:0.6,  dir:1  },
+      { color:'rgba(0,255,200,0.8)',  glow:'rgba(0,255,180,0.7)',  speed:0.35, dir:-1 },
+      { color:'rgba(150,80,255,0.75)',glow:'rgba(150,80,255,0.6)', speed:0.25, dir:1  },
+      { color:'rgba(255,80,160,0.65)',glow:'rgba(255,80,160,0.5)', speed:0.8,  dir:-1 },
+    ];
+    const miniColors = [
+      { fill:['#aaffee','#00c896'], glow:'rgba(0,255,180,1)' },
+      { fill:['#ff99cc','#ff3c88'], glow:'rgba(255,60,140,1)' },
+      { fill:['#cc99ff','#8840ff'], glow:'rgba(160,80,255,1)' },
+    ];
+    const miniSizes = [8, 5.5, 6.5];
+    let angles = [0, Math.PI*0.6, Math.PI*1.3];
+    let W, H, cx, cy, radii = [];
+
+    function resize() {
+      W = canvas.width = canvas.offsetWidth;
+      H = canvas.height = canvas.offsetHeight;
+      cx = W/2; cy = H/2;
+      const base = Math.min(W,H)*0.48;
+      radii = [base, base*0.78, base*0.58, base*0.40];
+    }
+
+    function drawRingHalf(rx, color, glow, front) {
+      const ry = rx * tilt;
+      ctx.save();
+      ctx.beginPath();
+      if(front) ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI);
+      else ctx.ellipse(cx, cy, rx, ry, 0, Math.PI, Math.PI*2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = glow;
+      ctx.shadowBlur = 16;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawMini(rx, angle, mc, size) {
+      const ry = rx * tilt;
+      const x = cx + rx * Math.cos(angle);
+      const y = cy + ry * Math.sin(angle);
+      const grad = ctx.createRadialGradient(x-size*0.35, y-size*0.35, size*0.1, x, y, size);
+      grad.addColorStop(0, mc.fill[0]);
+      grad.addColorStop(1, mc.fill[1]);
+      ctx.save();
+      ctx.shadowColor = mc.glow;
+      ctx.shadowBlur = 22;
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, Math.PI*2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawPlanet() {
+      const r = Math.min(W,H)*0.115;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.shadowColor = 'rgba(0,100,255,0.8)';
+      ctx.shadowBlur = 40;
+      const grad = ctx.createRadialGradient(cx-r*0.32, cy-r*0.28, r*0.05, cx, cy, r);
+      grad.addColorStop(0, '#4a9aff');
+      grad.addColorStop(0.3, '#1548c0');
+      grad.addColorStop(0.65, '#082050');
+      grad.addColorStop(1, '#010810');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.ellipse(cx-r*0.2, cy-r*0.22, r*0.22, r*0.13, -0.5, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(255,255,255,0.1)';
+      ctx.filter = 'blur(3px)';
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function frame() {
+      ctx.clearRect(0,0,W,H);
+      rings.forEach((r,i) => drawRingHalf(radii[i], r.color, r.glow, false));
+      for(let i=0;i<3;i++) {
+        angles[i] += rings[i].speed * rings[i].dir * 0.012;
+        if(Math.sin(angles[i]) < 0) drawMini(radii[i], angles[i], miniColors[i], miniSizes[i]);
+      }
+      drawPlanet();
+      rings.forEach((r,i) => drawRingHalf(radii[i], r.color, r.glow, true));
+      for(let i=0;i<3;i++) {
+        if(Math.sin(angles[i]) >= 0) drawMini(radii[i], angles[i], miniColors[i], miniSizes[i]);
+      }
+      requestAnimationFrame(frame);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+    requestAnimationFrame(frame);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initOrbit);
+  else initOrbit();
+})();
+</script>
+
+<script>
+function makeStars(canvasId, count) {
+  const c = document.getElementById(canvasId);
+  if(!c) return;
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function init() {
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    stars = Array.from({length:count}, () => ({
+      x: Math.random()*c.width, y: Math.random()*c.height,
+      r: Math.random()*1.3+0.2, a: Math.random(), sp: Math.random()*0.3+0.04
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s => {
+      s.a += s.sp*0.01;
+      const al = (Math.sin(s.a)*0.5+0.5)*0.8+0.1;
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle = `rgba(180,220,255,${al})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', init); init(); draw();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  makeStars('bgCanvas', 200);
+  makeStars('bgCanvas3', 130);
+  makeStars('bgCanvas4', 130);
+  makeStars('bgCanvas5', 130);
+
+  // ── PROGRESS BAR ──
+  const statuses = ['Booting System','Loading Assets','Connecting Modules','Initializing UI','Compiling Engine','Almost Ready'];
+  let pct = 0;
+  const progFill = document.getElementById('prog-fill');
+  const pctEl = document.getElementById('pct-text');
+  const statusEl = document.getElementById('loading-status');
+  const statusTxt = document.getElementById('status-text');
+  const pctTimer = setInterval(() => {
+    pct = Math.min(pct + Math.floor(Math.random()*5+1), 100);
+    if(progFill) progFill.style.width = pct + '%';
+    if(pctEl) pctEl.textContent = pct + '%';
+    const si = Math.floor((pct/100)*(statuses.length-1));
+    if(statusEl) statusEl.textContent = '[ ' + statuses[si] + '... ]';
+    if(statusTxt) statusTxt.textContent = statuses[si];
+    if(pct >= 100) clearInterval(pctTimer);
+  }, 28);
+
+  // ── TRANSITION: Loading → Calculator ──
+  function switchPage(fromId, toId) {
+    document.body.style.transition = 'opacity 0.55s ease';
+    document.body.style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById(fromId).classList.remove('active');
+      document.getElementById(toId).classList.add('active');
+      document.body.style.opacity = '1';
+    }, 550);
+  }
+
+  setTimeout(() => {
+    switchPage('page-loading', 'page-calc');
+  }, 3800);
+
+  // ── RIPPLE ──
+  document.querySelectorAll('.cbtn').forEach(btn => {
+    btn.addEventListener('pointerdown', function(e) {
+      const r = document.createElement('span');
+      r.classList.add('ripple');
+      const rect = this.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      r.style.width = r.style.height = size + 'px';
+      r.style.left = (e.clientX - rect.left - size/2) + 'px';
+      r.style.top  = (e.clientY - rect.top  - size/2) + 'px';
+      this.appendChild(r);
+      r.addEventListener('animationend', () => r.remove());
+    });
+  });
+
+  // ── SKIN & FX ──
+  let histOpen=false, skinOpen=false;
+  const skinClasses=['skin-square'];
+  const fxClasses=['fx-glow','fx-neon','fx-none'];
+
+  function switchPage(fromId, toId) {
+    document.body.style.transition = 'opacity 0.3s ease';
+    document.body.style.opacity = '0';
+    setTimeout(() => {
+      document.getElementById(fromId).classList.remove('active');
+      document.getElementById(toId).classList.add('active');
+      document.body.style.opacity = '1';
+    }, 300);
+  }
+
+  window.goBack = function() { switchPage(document.querySelector('.page.active').id, 'page-calc'); };
+
+  window.toggleHistory = function() { renderHistoryPage(); switchPage('page-calc','page-history'); };
+  window.toggleSkin = function() { switchPage('page-calc','page-skin'); };
+
+  window.setSkin = function(skin) {
+    document.body.classList.remove(...skinClasses);
+    document.querySelectorAll('.skin-opt').forEach(e => e.classList.remove('active'));
+    if(skin!=='circle') document.body.classList.add('skin-'+skin);
+    const id = 'psk-'+skin;
+    if(document.getElementById(id)) document.getElementById(id).classList.add('active');
+  };
+
+  window.setEffect = function(fx) {
+    document.body.classList.remove(...fxClasses);
+    document.querySelectorAll('.fx-opt').forEach(e => e.classList.remove('active'));
+    document.body.classList.add('fx-'+fx);
+    const id = 'pfx-'+fx;
+    if(document.getElementById(id)) document.getElementById(id).classList.add('active');
+  };
+
+  function renderHistoryPage() {
+    const list = document.getElementById('hist-page-list');
+    if(!history.length){ list.innerHTML='<div class="hist-page-empty">Belum ada riwayat</div>'; return; }
+    list.innerHTML = history.map(h=>`
+      <div class="hist-page-item" onclick="useHistoryPage('${h.result}')">
+        <div class="hist-page-expr">${h.expr}</div>
+        <div class="hist-page-result">${h.result}</div>
+      </div>`).join('');
+  }
+  window.useHistoryPage = val => { cur=val; reset=true; updateDisplay(); goBack(); };
+  window.clearHistoryPage = () => { history=[]; renderHistoryPage(); renderHistory(); };
+
+  // ── CALCULATOR ──
+  let cur='0', prev='', op='', reset=false, history=[];
+  const mainD = document.getElementById('main-disp');
+  const exprD = document.getElementById('expr-disp');
+  const opSyms = {'+':'+','-':'−','*':'×','/':'÷'};
+
+  function numToWord(n) {
+    const single = ['','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan','sepuluh','sebelas'];
+    const str = n.toString().replace('-','');
+    const num = parseInt(str);
+    if(isNaN(num) || n==='Error') return '';
+    if(n.includes('.')) return '';
+    const prefix = parseFloat(n) < 0 ? 'minus ' : '';
+    if(num === 0) return 'nol';
+    if(num <= 11) return prefix + (single[num] || 'nol');
+    if(num < 20) return prefix + single[num-10] + ' belas';
+    if(num < 100) return prefix + single[Math.floor(num/10)] + ' puluh' + (num%10 ? ' ' + single[num%10] : '');
+    if(num < 200) return prefix + 'seratus' + (num%100 ? ' ' + numToWord(String(num%100)) : '');
+    if(num < 1000) return prefix + single[Math.floor(num/100)] + ' ratus' + (num%100 ? ' ' + numToWord(String(num%100)) : '');
+    if(num < 2000) return prefix + 'seribu' + (num%1000 ? ' ' + numToWord(String(num%1000)) : '');
+    if(num < 1000000) return prefix + numToWord(String(Math.floor(num/1000))) + ' ribu' + (num%1000 ? ' ' + numToWord(String(num%1000)) : '');
+    return '';
+  }
+
+  function updateDisplay() {
+    mainD.textContent = cur.length>11 ? parseFloat(cur).toExponential(4) : cur;
+    exprD.textContent = op ? prev+' '+opSyms[op] : '';
+    const wordEl = document.getElementById('word-disp');
+    if(wordEl) wordEl.textContent = numToWord(cur);
+    document.querySelectorAll('.cbtn.op').forEach(b=>b.classList.remove('active-op'));
+    if(op){ const idx={'+':3,'-':2,'*':1,'/':0}[op]; const ops=document.querySelectorAll('.cbtn.op'); if(ops[idx]) ops[idx].classList.add('active-op'); }
+    mainD.style.color='rgba(255,255,255,0.7)';
+    setTimeout(()=>mainD.style.color='#fff',80);
+  }
+
+  window.calcDel = () => { if(reset||cur==='0')return; cur=cur.length>1?cur.slice(0,-1):'0'; updateDisplay(); };
+  window.calcNum = d => { if(reset){cur=d;reset=false;}else cur=cur==='0'?d:cur+d; updateDisplay(); };
+  window.calcDot = () => { if(reset){cur='0.';reset=false;}else if(!cur.includes('.'))cur+='.'; updateDisplay(); };
+  window.calcOp = o => { if(op&&!reset)calcEq(); prev=cur;op=o;reset=true;updateDisplay(); };
+  window.calcEq = () => {
+    if(!op||!prev)return;
+    let a=parseFloat(prev),b=parseFloat(cur),r;
+    if(op==='+')r=a+b; else if(op==='-')r=a-b; else if(op==='*')r=a*b; else r=b!==0?a/b:'Error';
+    const result=r==='Error'?'Error':parseFloat(r.toFixed(10)).toString();
+    addHistory(`${prev} ${opSyms[op]} ${cur}`, result);
+    cur=result;op='';prev='';reset=true;updateDisplay();
+  };
+  window.calcAC = () => { cur='0';prev='';op='';reset=false;updateDisplay(); };
+  window.calcSign = () => { cur=(parseFloat(cur)*-1).toString();updateDisplay(); };
+  window.calcPct = () => { cur=(parseFloat(cur)/100).toString();updateDisplay(); };
+
+  function addHistory(expr,result) {
+    history.unshift({expr,result});
+    if(history.length>30)history.pop();
+  }
+  function renderHistory() {
+    const list=document.getElementById('hist-page-list');
+    if(!list) return;
+    if(!history.length){ list.innerHTML='<div class="hist-page-empty">Belum ada riwayat</div>'; return; }
+    list.innerHTML=history.map(h=>`
+      <div class="hist-page-item" onclick="useHistoryPage('${h.result}')">
+        <div class="hist-page-expr">${h.expr}</div>
+        <div class="hist-page-result">${h.result}</div>
+      </div>`).join('');
+  }
+
+  updateDisplay();
+  document.getElementById('psk-circle').classList.add('active');
+  document.getElementById('pfx-none').classList.add('active');
+  document.body.classList.add('fx-none');
+});
+</script>
+</body>
+</html>
